@@ -13,7 +13,7 @@ bot = telebot.TeleBot(token, parse_mode="HTML")
 admin = 7077294261
 stopuser = {}
 
-# ================== CHECKER WITHOUT PROXY ==================
+# ================== CHECKER ==================
 def pali(ccx):
     ccx = ccx.strip()
     current_time = datetime.now().strftime('%H:%M:%S')
@@ -27,7 +27,7 @@ def pali(ccx):
         r = requests.get(url, timeout=30)
         text = r.text
         
-        print(f"[{current_time}] STATUS CODE → {r.status_code}")
+        print(f"[{current_time}] STATUS → {r.status_code}")
         print(f"[{current_time}] RESPONSE → {text[:400]}")
         
         if "ORDER APPROVED" in text.upper() or "APPROVED" in text.upper() or "SUCCESS" in text.upper():
@@ -81,10 +81,3 @@ def handle_start_button(call):
 def single_check(message):
     ko = bot.reply_to(message, "Checking...").message_id
     try:
-        cc_text = message.reply_to_message.text if message.reply_to_message else message.text
-        cc = reg(cc_text)
-        if not cc:
-            return bot.edit_message_text("Invalid Card Format!", message.chat.id, ko)
-
-        last = pali(cc)
-        msg = f'''<strong>#PayPal_Custom
