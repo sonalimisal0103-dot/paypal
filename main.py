@@ -68,4 +68,33 @@ def luhn_check(number: str) -> bool:
             if n > 9:
                 n -= 9
         total += n
-    return total
+    return total % 10 == 0
+
+def reg(cc: str):
+    parts = [p for p in re.split(r'\D+', cc) if p]
+    if len(parts) >= 4:
+        pan = parts[0]
+        mm = parts[1].zfill(2)
+        yy = parts[2]
+        cvc = parts[3]
+        if not luhn_check(pan):
+            return None
+        return f"{pan}|{mm}|{yy}|{cvc}"
+    return None
+
+
+# ================== BOT ==================
+@bot.message_handler(commands=["start"])
+def handle_start(message):
+    mes = types.InlineKeyboardMarkup()
+    mes.add(types.InlineKeyboardButton(text="Start Checking", callback_data="start"))
+    bot.send_message(message.chat.id, f"Hi {message.from_user.first_name}, Welcome To Toman Checker (PayPal)", reply_markup=mes)
+
+
+@bot.callback_query_handler(func=lambda call: call.data == 'start')
+def handle_start_button(call):
+    bot.send_message(call.message.chat.id, "Welcome to PayPal Custom Checker\nUse /pp for single check or send .txt file")
+
+
+@bot.message_handler(func=lambda message: message.text and (message.text.lower().startswith('.pp') or message.text.lower().startswith('/pp')))
+def single_check(message):
