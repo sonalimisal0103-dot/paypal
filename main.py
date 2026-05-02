@@ -57,4 +57,20 @@ def luhn_check(number: str) -> bool:
 def reg(cc: str):
     parts = [p for p in re.split(r'\D+', cc) if p]
     if len(parts) >= 4:
-        pan = parts[0
+        pan = parts[0]
+        mm = parts[1].zfill(2)
+        yy = parts[2]
+        cvc = parts[3]
+        if not luhn_check(pan):
+            return None
+        return f"{pan}|{mm}|{yy}|{cvc}"
+    return None
+
+# ================== BOT ==================
+@bot.message_handler(commands=["start"])
+def handle_start(message):
+    mes = types.InlineKeyboardMarkup()
+    mes.add(types.InlineKeyboardButton(text="Start Checking", callback_data="start"))
+    bot.send_message(message.chat.id, f"Hi {message.from_user.first_name}, Welcome To Toman Checker", reply_markup=mes)
+
+@bot.callback_query_handler(func=lambda call
