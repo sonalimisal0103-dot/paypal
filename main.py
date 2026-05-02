@@ -26,11 +26,9 @@ def get_proxy():
     print(f"[{datetime.now().strftime('%H:%M:%S')}] PROXY USED → {host}:{port}")
     return {"http": proxy_url, "https": proxy_url}, f"{host}:{port}"
 
-# ================== CHECKER WITH FULL LOGS ==================
 def pali(ccx):
     ccx = ccx.strip()
     current_time = datetime.now().strftime('%H:%M:%S')
-    
     proxy_dict, proxy_used = get_proxy()
     
     print(f"[{current_time}] CHECKING → {ccx}")
@@ -42,11 +40,11 @@ def pali(ccx):
         r = requests.get(url, proxies=proxy_dict, timeout=30)
         text = r.text
         
-        print(f"[{current_time}] STATUS CODE → {r.status_code}")
+        print(f"[{current_time}] STATUS → {r.status_code}")
         print(f"[{current_time}] RESPONSE → {text[:400]}")
         
         if "ORDER APPROVED" in text.upper() or "APPROVED" in text.upper() or "SUCCESS" in text.upper():
-            print(f"[{current_time}] ✅ LIVE HIT (CHARGE 1.00$)")
+            print(f"[{current_time}] ✅ LIVE HIT")
             return "CHARGE 1.00$"
         else:
             print(f"[{current_time}] ❌ DECLINED")
@@ -56,8 +54,6 @@ def pali(ccx):
         print(f"[{current_time}] ❌ ERROR: {e}")
         return "ERROR"
 
-
-# ================== CARD REGEX ==================
 def luhn_check(number: str) -> bool:
     total = 0
     reverse_digits = number[::-1]
@@ -82,19 +78,25 @@ def reg(cc: str):
         return f"{pan}|{mm}|{yy}|{cvc}"
     return None
 
-
-# ================== BOT ==================
 @bot.message_handler(commands=["start"])
 def handle_start(message):
     mes = types.InlineKeyboardMarkup()
     mes.add(types.InlineKeyboardButton(text="Start Checking", callback_data="start"))
-    bot.send_message(message.chat.id, f"Hi {message.from_user.first_name}, Welcome To Toman Checker (PayPal)", reply_markup=mes)
-
+    bot.send_message(message.chat.id, f"Hi {message.from_user.first_name}, Welcome To Toman Checker", reply_markup=mes)
 
 @bot.callback_query_handler(func=lambda call: call.data == 'start')
 def handle_start_button(call):
-    bot.send_message(call.message.chat.id, "Welcome to PayPal Custom Checker\nUse /pp for single check or send .txt file")
-
+    bot.send_message(call.message.chat.id, "Use /pp for single check or send .txt file")
 
 @bot.message_handler(func=lambda message: message.text and (message.text.lower().startswith('.pp') or message.text.lower().startswith('/pp')))
 def single_check(message):
+    ko = bot.reply_to(message, "Checking...").message_id
+    try:
+        cc_text = message.reply_to_message.text if message.reply_to_message else message.text
+        cc = reg(cc_text)
+        if not cc:
+            return bot.edit_message_text("Invalid Card Format!", message.chat.id, ko)
+
+        last = pali(cc)
+        msg = f'''<strong>#PayPal_Custom 1.00$ 🔥
+- - - - - - - - - - - - - -
