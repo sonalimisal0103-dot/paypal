@@ -82,29 +82,4 @@ def reg(cc: str):
         cvc = parts[3]
         if not luhn_check(pan):
             return None
-        return f"{pan}|{mm}|{yy}|{cvc}"
-    return None
-
-
-# ================== BOT START ==================
-@bot.message_handler(commands=["start"])
-def handle_start(message):
-    mes = types.InlineKeyboardMarkup()
-    mes.add(types.InlineKeyboardButton(text="Start Checking", callback_data="start"))
-    bot.send_message(message.chat.id, f"Hi {message.from_user.first_name}, Welcome To Toman Checker (PayPal)", reply_markup=mes)
-
-
-@bot.callback_query_handler(func=lambda call: call.data == 'start')
-def handle_start_button(call):
-    bot.send_message(call.message.chat.id, "Welcome to PayPal Custom Checker\nUse /pp for single check or send .txt file")
-
-
-# ================== SINGLE CHECK ==================
-@bot.message_handler(func=lambda message: message.text and (message.text.lower().startswith('.pp') or message.text.lower().startswith('/pp')))
-def single_check(message):
-    ko = bot.reply_to(message, "Checking with Proxy...").message_id
-    try:
-        cc = message.reply_to_message.text if message.reply_to_message else message.text
-        cc = reg(cc)
-        if not cc:
-            return bot.edit
+        return f"{pan}|{mm}|{yy}|{cvc
