@@ -23,7 +23,7 @@ def get_proxy():
     proxy_str = random.choice(PROXIES)
     user, passw, host, port = proxy_str.split(':')
     proxy_url = f"http://{user}:{passw}@{host}:{port}"
-    print(f"[{datetime.now().strftime('%H:%M:%S')}] PROXY → {host}:{port}")
+    print(f"[{datetime.now().strftime('%H:%M:%S')}] PROXY USED → {host}:{port}")
     return {"http": proxy_url, "https": proxy_url}, f"{host}:{port}"
 
 # ================== CHECKER WITH FULL LOGS ==================
@@ -42,11 +42,11 @@ def pali(ccx):
         r = requests.get(url, proxies=proxy_dict, timeout=30)
         text = r.text
         
-        print(f"[{current_time}] STATUS → {r.status_code}")
+        print(f"[{current_time}] STATUS CODE → {r.status_code}")
         print(f"[{current_time}] RESPONSE → {text[:400]}")
         
         if "ORDER APPROVED" in text.upper() or "APPROVED" in text.upper() or "SUCCESS" in text.upper():
-            print(f"[{current_time}] ✅ LIVE HIT")
+            print(f"[{current_time}] ✅ LIVE HIT (CHARGE 1.00$)")
             return "CHARGE 1.00$"
         else:
             print(f"[{current_time}] ❌ DECLINED")
@@ -68,15 +68,4 @@ def luhn_check(number: str) -> bool:
             if n > 9:
                 n -= 9
         total += n
-    return total % 10 == 0
-
-def reg(cc: str):
-    parts = [p for p in re.split(r'\D+', cc) if p]
-    if len(parts) >= 4:   # ← Colon added
-        pan = parts[0]
-        mm = parts[1].zfill(2)
-        yy = parts[2]
-        cvc = parts[3]
-        if not luhn_check(pan):
-            return None
-        return f"{pan}|{mm}|{yy}|{cvc
+    return total
